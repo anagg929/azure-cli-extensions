@@ -77,7 +77,7 @@ def create_k8s_extension(cmd, client, resource_group_name, cluster_name, name, c
 
     config_settings = {}
     config_protected_settings = {}
-    createIdentity = False
+    create_identity = False
     # Get Configuration Settings from file
     if configuration_settings_file is not None:
         config_settings = __get_config_settings_from_file(configuration_settings_file)
@@ -98,7 +98,7 @@ def create_k8s_extension(cmd, client, resource_group_name, cluster_name, name, c
 
     # ExtensionType specific conditions
     if extension_type.lower() == 'azuremonitor-containers':
-        createIdentity = True
+        create_identity = True
         # hardcoding  name, release_namespace and scope since ci only supports one instance and cluster scope
         # and platform doesnt have support yet extension specific constraints like this
         logger.warning('Ignoring name, release_namespace and scope parameters since azuremonitor-containers '
@@ -127,20 +127,21 @@ def create_k8s_extension(cmd, client, resource_group_name, cluster_name, name, c
         scope_namespace = ScopeNamespace(target_namespace=target_namespace)
         ext_scope = Scope(namespace=scope_namespace, cluster=None)
 
-    identityObj = None
+    identity_object = None
     cluster_location = ""
     # Create identity
-    if createIdentity:
+    if create_identity:
         subscription_id = get_subscription_id(cmd.cli_ctx)
         resources = cf_resources(cmd.cli_ctx, subscription_id)
-        cluster_resource_id = '/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Kubernetes/connectedClusters/{2}'.format(subscription_id, resource_group_name, cluster_name)
+        cluster_resource_id = '/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.Kubernetes/' \
+                              'connectedClusters/{2}'.format(subscription_id, resource_group_name, cluster_name)
         try:
             resource = resources.get_by_id(cluster_resource_id, '2020-01-01-preview')
             cluster_location = str(resource.location.lower())
         except CloudError as ex:
             raise ex
         identity_type = "SystemAssigned"
-        identityObj = ConfigurationIdentity(type=identity_type)
+        identity_object = ConfigurationIdentity(type=identity_type)
     # Create Extension Instance object
     extension_instance = ExtensionInstanceForCreate(extension_type=extension_type,
                                                     auto_upgrade_minor_version=auto_upgrade_minor_version,
@@ -149,7 +150,7 @@ def create_k8s_extension(cmd, client, resource_group_name, cluster_name, name, c
                                                     scope=ext_scope,
                                                     configuration_settings=config_settings,
                                                     configuration_protected_settings=config_protected_settings,
-                                                    identity=identityObj,
+                                                    identity=identity_object,
                                                     location=cluster_location)
 
     # Try to create the resource
